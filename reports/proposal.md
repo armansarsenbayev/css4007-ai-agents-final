@@ -2,7 +2,7 @@
 
 ## Project Title
 
-IELTS Candidate Assistant: a tool-using agent that answers test registration questions from real data, not from memory
+IELTS Candidate Assistant: a trilingual (Kazakh, Russian, English) tool-using agent that answers test registration questions from real data, not from memory
 
 ## Problem Description
 
@@ -12,11 +12,13 @@ A plain chatbot is not a good answer to this problem. A general LLM does not kno
 
 The goal of the project is an agent that answers these questions only from tool results. The model decides which tool it needs (schedule search, fee calculation, policy search, results date), my code runs the tool on the data, and the model writes the answer from what the tool returned. If the data does not contain the answer, the agent must say so and point the candidate to a human instead of guessing.
 
+Language is a second part of the problem. Candidates in Kazakhstan write in Kazakh, Russian or English, and often mix them in one message ("Алматыда тест бар ма, computer-based?"). Official information is mostly in English. A useful assistant has to understand all three languages, answer in the language of the candidate, and still find the right rule in an English handbook. In HW3 I saw that keyword search fails exactly here: BM25 could not match a Russian query to an English chunk. So the project also has to solve cross-language retrieval, not only tool calling.
+
 All data in the project is mock data that I write myself (a fictional test centre with sessions in Almaty, Astana and Shymkent, a simplified fee table and a simplified policy handbook). No real candidate data, no internal company data and no official prices are used. The rules are simplified versions written for the project and are not official IELTS policy.
 
 ## Target Users
 
-1. IELTS candidates who want a quick and correct answer about dates, fees, rules and results without waiting for the support team.
+1. IELTS candidates in Kazakhstan who want a quick and correct answer about dates, fees, rules and results in their own language (Kazakh, Russian or English) without waiting for the support team.
 2. Support staff at a test centre, who can use the agent as a helper to answer typical questions faster and spend their time on the cases that really need a human (medical cancellations, complaints, special arrangements).
 
 ## Selected Difficulty
@@ -33,6 +35,7 @@ C (tool-using agent). The LLM selects and calls at least two meaningful tools, t
 6. Handle missing or unavailable information honestly: a city with no sessions, a session id that does not exist, a question the handbook does not cover. In these cases the agent says that the information is not available and suggests contacting the centre.
 7. Return a structured final answer (JSON with the answer text, the sources used, the tools used and a flag for cases that need a human), validate it, and keep a log of every tool call.
 8. Survive model and API failures (timeouts, rate limits, server errors) with retries and a clear error message instead of a crash.
+9. Work in three languages. The agent understands requests in Kazakh (Cyrillic, and Latin script as a best effort), Russian and English, including mixed messages, and answers in the language of the user. City names are recognised in all common forms (for example Almaty, Алматы, Алма-Ата; Astana, Астана, Нур-Султан). Questions about rules in any of the three languages find the right section of the English handbook.
 
 ## Proposed Functions
 
@@ -41,16 +44,17 @@ The project will be written in Python. The starter Node files and `npm test` sta
 | Name | Purpose | Input | Output | Dependencies |
 |---|---|---|---|---|
 | `load_data()` | Load the mock schedule, fee table and policy handbook once at start | paths to `data/sessions.json`, `data/fees.json`, `data/policy.jsonl` | in-memory data objects | `json`, `pathlib` |
-| `find_test_sessions(city, module, delivery, date_from, date_to)` | Find open test sessions that match the filters | `city: str`, `module: "academic" \| "general"`, `delivery: "computer" \| "paper"`, `date_from: str (YYYY-MM-DD)`, `date_to: str (YYYY-MM-DD)` | list of `{session_id, city, date, module, delivery, seats_left, registration_deadline}`; an empty list or `{"error": ...}` with suggestions when the city is unknown | mock schedule |
+| `normalize_city(name)` | Map any spelling of a city in Kazakh, Russian or English to one canonical name, without guessing | `name: str` (for example "Алматы", "Алма-Ата", "almaty") | canonical city name, or `None` plus the closest valid cities | alias table in `data/cities.json`, `difflib` |
+| `find_test_sessions(city, module, delivery, date_from, date_to)` | Find open test sessions that match the filters | `city: str` (any language, passed through `normalize_city`), `module: "academic" \| "general"`, `delivery: "computer" \| "paper"`, `date_from: str (YYYY-MM-DD)`, `date_to: str (YYYY-MM-DD)` | list of `{session_id, city, date, module, delivery, seats_left, registration_deadline}`; an empty list or `{"error": ...}` with suggestions when the city is unknown | mock schedule |
 | `calculate_change_fee(session_id, action, request_date)` | Compute what a transfer or cancellation costs on a given day | `session_id: str`, `action: "transfer" \| "cancel"`, `request_date: str (YYYY-MM-DD)`, optional, defaults to today | `{session_id, days_before_test, policy_window, allowed, fee_kzt, refund_kzt, rule_id}` | mock schedule, fee table, `datetime` |
-| `search_policy(query, top_k)` | Find the handbook sections that answer a rule question | `query: str`, `top_k: int` (1 to 5, default 3) | list of `{section_id, title, text, score}` | BM25 (`rank_bm25`), handbook chunks |
+| `search_policy(query, top_k)` | Find the handbook sections that answer a rule question | `query: str` (the model is told to write it in English, whatever the user's language), `top_k: int` (1 to 5, default 3) | list of `{section_id, title, text, score}` | BM25 (`rank_bm25`), handbook chunks; a multilingual embedding variant (EmbeddingGemma) for comparison |
 | `estimate_results_date(session_id)` | Give the expected results date for a session | `session_id: str` | `{session_id, test_date, delivery, results_date, rule_id}` | mock schedule, fee table rules, `datetime` |
 | `validate_tool_args(name, args)` | Check tool arguments against the JSON schema before the tool runs | tool name, parsed `arguments` dict | `None` if valid, or an error message the model can read | `jsonschema` |
 | `execute_tool(name, args)` | Dispatch a model tool call to the right Python function and never crash | tool name, `arguments` string from the model | tool result as a JSON string, or `{"error": ...}` | the four tools, `validate_tool_args`, `json` |
 | `log_tool_call(record)` | Save every tool call for later analysis | `{request_id, round, tool, args, result, seconds}` | one line appended to `logs/tool_calls.jsonl` | `json`, `time` |
 | `complete(messages, tools)` | Model adapter: send the conversation and tool definitions to the LLM | message list, tool schemas | `{text, tool_calls, usage}` | `openai` SDK, `python-dotenv`, retries with back-off |
-| `run_agent(user_message, history)` | The agent loop: call the model, run requested tools, return results, repeat until a final answer or the round limit | user text, optional earlier messages | final structured answer | `complete`, `execute_tool`, `log_tool_call` |
-| `validate_answer(answer, tool_results)` | Check the final answer: valid JSON with required fields, and every date and amount in it appears in a tool result | final model output, tool results of this request | validated answer, or a safe fallback answer that flags `needs_human: true` | `json`, `re` |
+| `run_agent(user_message, history)` | The agent loop: call the model, run requested tools, return results, repeat until a final answer or the round limit | user text in Kazakh, Russian or English, optional earlier messages | final structured answer | `complete`, `execute_tool`, `log_tool_call` |
+| `validate_answer(answer, tool_results)` | Check the final answer: valid JSON with required fields (`language`, `answer`, `facts`, `sources`, `tools_used`, `needs_human`), and every date and amount in `facts` appears in a tool result. Facts are kept in a separate language-neutral field (ISO dates, numbers), because the same date is written "12 December", "12 декабря" or "12 желтоқсан" in the answer text | final model output, tool results of this request | validated answer, or a safe fallback answer in the user's language that flags `needs_human: true` | `json`, `re` |
 
 ## Proposed Agent Tools
 
@@ -69,10 +73,13 @@ Tool design rules, taken from what I learned in HW4:
 2. A tool never crashes: invalid or impossible input returns `{"error": "..."}` with a hint, so the model can fix its call in the next round.
 3. A tool never silently guesses. For example, a misspelled city is not auto-corrected; the tool suggests the closest valid cities.
 4. Parameter descriptions are written very precisely, because in HW4 one ambiguous sentence in a parameter description changed the accuracy from 15/20 to 19/20.
+5. Tools are language-independent. Arguments use fixed English values (`"academic"`, `"computer"`, ISO dates), so the model translates the user's request into arguments and my code never has to parse Kazakh or Russian text. The only free-text arguments are `city`, which goes through `normalize_city`, and the `search_policy` query, which the model writes in English.
 
 ## Model Selection
 
 Main model: `gpt-5.6-luna` through the OpenAI Chat Completions API with function calling. Reasons: it supports tool calls, it is cheap (about $0.20 per million input tokens and $1.20 per million output tokens), and I already used it in my previous homeworks, so I know its limits: it accepts only the default temperature, and tool calls require `reasoning_effort="none"`.
+
+Languages: the model understands Kazakh, Russian and English, so no separate translation service is needed. The system prompt tells it to answer in the user's language and not to mix languages. Kazakh costs more tokens than English (in HW1 about 1.58 times more per character with the `o200k_base` tokenizer), which I will measure but which is still a very small cost. For policy search I will compare BM25 on an English query written by the model with the multilingual embedding model EmbeddingGemma (`google/embeddinggemma-300m`), which found the right chunk for Russian queries in HW3.
 
 The model client is a small adapter (`complete(messages, tools)`), so the provider can be changed through configuration. As a backup I will keep an OpenRouter route (same OpenAI-compatible API, different base URL and key), which I used in HW1.
 
@@ -82,7 +89,7 @@ The API key is read from a local `.env` file (`LLM_API_KEY`, `LLM_MODEL`), which
 
 ```mermaid
 flowchart TD
-    U[User request] --> A[run_agent]
+    U[User request in Kazakh, Russian or English] --> A[run_agent]
     A --> M[LLM gpt-5.6-luna with 4 tool definitions]
     M -->|final answer| V[validate_answer]
     M -->|tool_calls| P[parse arguments with json.loads]
@@ -97,9 +104,11 @@ flowchart TD
     X --> L[log_tool_call to logs/tool_calls.jsonl]
     X -->|tool result| M
     E --> M
-    V -->|valid and grounded| O[Answer to user with sources]
-    V -->|invalid or ungrounded| F[Safe fallback answer, needs_human = true]
+    V -->|valid and grounded| O[Answer in the user's language with sources]
+    V -->|invalid or ungrounded| F[Safe fallback answer in the user's language, needs_human = true]
 ```
+
+Language handling: the model reads the request in any of the three languages and turns it into English tool arguments. `normalize_city` maps city names in any language to one canonical name. `search_policy` receives an English query. The tool results are language-neutral JSON, and the model writes the final answer in the user's language, while the facts used for validation stay in a separate field.
 
 Workflow in words: User request → LLM → tool selection → argument validation → tool execution on mock data → tool result returned to the LLM → (repeat if the model needs another tool) → final answer → answer validation → user.
 
@@ -114,6 +123,10 @@ Limits: at most 6 model rounds per request; if the limit is reached the agent st
 5. "Is there a test in Taraz next month?" → the tool returns no sessions for Taraz; the agent says that no sessions are available there and lists the cities that do have sessions, without inventing anything.
 6. "Can you help me write a short polite email to the centre to ask about special arrangements for a hearing problem?" → no tool is needed; the model writes the email directly.
 7. "What band score will I get if I study for two weeks?" → out of scope; the agent explains that it cannot predict scores and offers what it can help with.
+8. Kazakh: "Алматыда желтоқсанда компьютерлік Academic тест бар ма?" → the same call as example 1, `find_test_sessions(city="Almaty", module="academic", delivery="computer", ...)`, and the answer is written in Kazakh.
+9. Russian: "Я записан на ALA-1212-CD. Сколько будет стоить перенос, если сделать его сегодня?" → `calculate_change_fee(session_id="ALA-1212-CD", action="transfer")`, answer in Russian.
+10. Kazakh rule question: "Тест күні қандай құжат алып келу керек?" → the model writes an English query, `search_policy(query="ID documents required on test day")`, finds the English handbook section and answers in Kazakh with the section id.
+11. Old city name and mixed language: "Есть ли paper test в Нур-Султане в декабре?" → `normalize_city` maps "Нур-Султан" to Astana, answer in Russian.
 
 ## Evaluation Plan
 
@@ -128,6 +141,11 @@ Limits: at most 6 model rounds per request; if the limit is reached the agent st
    - average rounds, tokens, latency and cost per request.
 4. **Repeated runs:** the model only accepts temperature 1, so the scenario set will be run at least twice to see how much the results change between runs, as I did in HW4.
 5. **Comparison with a baseline:** the same requests sent to the model without tools, to show how often a plain LLM invents dates and fees.
+6. **Multilingual tests:**
+   - unit tests without the API: `normalize_city` for all spellings (Алматы, Алма-Ата, Almaty, Нур-Султан, Астана) and for an unknown city; `validate_answer` accepts facts when the answer text is in Kazakh or Russian;
+   - scenario tests with the model: the same question in Kazakh, Russian and English must lead to the same tool and the same arguments; the answer must be in the language of the question with no mixed-language sentences; Kazakh written in Latin script must be understood or the agent must ask politely to repeat;
+   - retrieval comparison: hit@3 of `search_policy` for rule questions in all three languages, BM25 with an English query versus EmbeddingGemma;
+   - token and cost difference between the same requests in Kazakh, Russian and English.
 
 Results, failures and fixes will be recorded in the weekly reports and in the final report.
 
@@ -137,9 +155,9 @@ Results, failures and fixes will be recorded in the weekly reports and in the fi
 |---|---|---|
 | 10 | Nov 2–8 | Fork the repository, choose topic and level, write this proposal: functions, tools, architecture, examples, evaluation plan and milestones. Week 10 report. |
 | 11 | Nov 9–15 | Set up the Python environment, `requirements.txt`, `.env.example`, implement the model adapter `complete()`, run the first real request, commit working code. Write the first version of the mock data files. |
-| 12 | Nov 16–22 | Implement the core functions and data loading, structured JSON output and its validation, input validation, first unit tests. |
-| 13 | Nov 23–29 | Implement the four tools with JSON schemas, register them with the LLM, let the model select tools, add argument validation and tool call logging. |
+| 12 | Nov 16–22 | Implement the core functions and data loading, `normalize_city` with the trilingual alias table, structured JSON output with a separate `facts` field and its validation, the language rule in the system prompt, input validation, first unit tests. |
+| 13 | Nov 23–29 | Implement the four tools with JSON schemas, register them with the LLM, let the model select tools, make the model write `search_policy` queries in English, add argument validation and tool call logging. |
 | 14 | Nov 30–Dec 6 | Complete the tool-calling loop (several rounds, chained tools), error handling for failed tools and unavailable data, round limit. |
 | 15 | Dec 7–13 | Reliability: retries and API failure handling, grounding check of the final answer, failure tests with a mocked client, expand the test suite to 12 or more tests. |
-| 16 | Dec 14–20 | Run the full scenario evaluation twice plus the no-tool baseline, record results, analyse failures, improve tool descriptions and prompts, update documentation. |
+| 16 | Dec 14–20 | Run the full scenario evaluation twice plus the no-tool baseline, including the questions in Kazakh, Russian and English, compare BM25 and EmbeddingGemma for policy search, record results, analyse failures, improve tool descriptions and prompts, update documentation. |
 | 17 | Dec 21–22 | Final code, README with setup instructions, test results, final report, AI-use statement, demo and technical defense. |

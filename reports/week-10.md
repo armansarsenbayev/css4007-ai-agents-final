@@ -7,6 +7,7 @@
 - Chose level C (tool-using agent) and checked the plan against every mandatory C requirement: at least two meaningful tools, LLM tool selection, argument validation, grounded answers, requests without tools, handling of failed tools and missing information, at least eight tests, tool execution logs.
 - Wrote `reports/proposal.md` with the problem statement, target users, expected functionality, a specification of 11 functions (name, purpose, inputs, outputs, dependencies), the 4 LLM-callable tools and why the agent needs each of them, the model choice, an architecture diagram, 7 example requests, the evaluation plan and the milestones for weeks 10 to 17.
 - Decided on the data: all schedules, fees and policy rules will be mock data written by me for a fictional test centre.
+- Extended the proposal with trilingual support (Kazakh, Russian, English): a city alias function, English tool arguments and policy search queries, a language-neutral `facts` field for answer validation, four multilingual example requests and multilingual tests in the evaluation plan.
 
 AI assistance: I used Claude (Anthropic) to discuss the scope and to help draft the proposal text. I reviewed every section, changed it where needed and I can explain every decision in it.
 
