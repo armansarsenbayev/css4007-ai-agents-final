@@ -23,7 +23,24 @@ The application can take a question in Kazakh, Russian or English from the comma
 
 First real run (`python -m ielts_agent "<question>"`):
 
-TODO: paste the output of the first real requests here (English, Russian and Kazakh question), including the token and cost line.
+```text
+$ python -m ielts_agent "Are there computer-delivered Academic tests in Almaty in December?"
+I can’t access the centre’s current schedule, so I can’t confirm whether computer-delivered IELTS Academic tests are available in Almaty in December. Please contact the test centre directly to check dates and available places.
+
+[gpt-5.6-luna | 213 in / 47 out tokens | 3.39s | $0.000099]
+
+$ python -m ielts_agent "Я записан на ALA-1212-CD. Сколько будет стоить перенос, если сделать его сегодня?"
+Я не могу посмотреть таблицу сборов и правила для записи ALA-1212-CD, поэтому не могу назвать стоимость переноса на сегодня. Пожалуйста, свяжитесь с вашим тестовым центром и укажите номер записи ALA-1212-CD — там уточнят сумму и условия.
+
+[gpt-5.6-luna | 222 in / 64 out tokens | 2.56s | $0.000121]
+
+$ python -m ielts_agent "Алматыда желтоқсанда компьютерлік Academic тест бар ма?"
+Менде орталықтың желтоқсандағы кестесіне қолжетімділік жоқ, сондықтан Алматыда компьютерлік IELTS Academic тестінің бар-жоғын растай алмаймын. Нақты күндер мен бос орындарды білу үшін тест орталығына тікелей хабарласыңыз.
+
+[gpt-5.6-luna | 213 in / 64 out tokens | 2.56s | $0.000119]
+```
+
+Observations: all three answers are in the language of the question (English, Russian, Kazakh) with no mixed sentences, and the model did not invent any date, seat count or fee; it followed the v0 prompt rule and pointed the user to the centre. One request costs about $0.0001 and takes 2.5 to 3.5 seconds. The Kazakh question used the same number of input tokens as the English one (213), because most input tokens are the English system prompt.
 
 Tests: `python -m pytest -q` gives 16 passed; `npm test` passes.
 
