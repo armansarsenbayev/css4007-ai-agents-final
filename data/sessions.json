@@ -1,0 +1,17 @@
+{
+  "_note": "Mock schedule of a fictional test centre, written for the CSS 4007 project. Not real IELTS data.",
+  "sessions": [
+    {"session_id": "ALA-1205-PB", "city": "Almaty",   "date": "2026-12-05", "module": "academic", "delivery": "paper",    "seats_left": 12, "registration_deadline": "2026-11-21"},
+    {"session_id": "ALA-1212-CD", "city": "Almaty",   "date": "2026-12-12", "module": "academic", "delivery": "computer", "seats_left": 4,  "registration_deadline": "2026-12-07"},
+    {"session_id": "ALA-1217-CD", "city": "Almaty",   "date": "2026-12-17", "module": "general",  "delivery": "computer", "seats_left": 9,  "registration_deadline": "2026-12-12"},
+    {"session_id": "ALA-0116-CD", "city": "Almaty",   "date": "2027-01-16", "module": "academic", "delivery": "computer", "seats_left": 20, "registration_deadline": "2027-01-11"},
+    {"session_id": "ALA-0123-PB", "city": "Almaty",   "date": "2027-01-23", "module": "general",  "delivery": "paper",    "seats_left": 15, "registration_deadline": "2027-01-09"},
+    {"session_id": "AST-1205-CD", "city": "Astana",   "date": "2026-12-05", "module": "academic", "delivery": "computer", "seats_left": 0,  "registration_deadline": "2026-11-30"},
+    {"session_id": "AST-1219-PB", "city": "Astana",   "date": "2026-12-19", "module": "academic", "delivery": "paper",    "seats_left": 7,  "registration_deadline": "2026-12-05"},
+    {"session_id": "AST-0109-CD", "city": "Astana",   "date": "2027-01-09", "module": "general",  "delivery": "computer", "seats_left": 11, "registration_deadline": "2027-01-04"},
+    {"session_id": "AST-0130-PB", "city": "Astana",   "date": "2027-01-30", "module": "academic", "delivery": "paper",    "seats_left": 18, "registration_deadline": "2027-01-16"},
+    {"session_id": "SHY-1212-PB", "city": "Shymkent", "date": "2026-12-12", "module": "academic", "delivery": "paper",    "seats_left": 6,  "registration_deadline": "2026-11-28"},
+    {"session_id": "SHY-0123-CD", "city": "Shymkent", "date": "2027-01-23", "module": "academic", "delivery": "computer", "seats_left": 10, "registration_deadline": "2027-01-18"},
+    {"session_id": "SHY-0213-PB", "city": "Shymkent", "date": "2027-02-13", "module": "general",  "delivery": "paper",    "seats_left": 14, "registration_deadline": "2027-01-30"}
+  ]
+}

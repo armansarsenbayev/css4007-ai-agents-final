@@ -1,0 +1,8 @@
+{
+  "_note": "Spellings of the cities that have test sessions, in English, Russian and Kazakh, including old names. Compared in lower case.",
+  "aliases": {
+    "Almaty": ["almaty", "алматы", "алма-ата", "alma-ata", "alma ata", "алма ата"],
+    "Astana": ["astana", "астана", "нур-султан", "нұр-сұлтан", "nur-sultan", "nur sultan", "акмола", "ақмола", "akmola", "целиноград"],
+    "Shymkent": ["shymkent", "шымкент", "чимкент", "chimkent"]
+  }
+}

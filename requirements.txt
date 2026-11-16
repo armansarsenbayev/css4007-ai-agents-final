@@ -1,0 +1,4 @@
+# Python dependencies of the IELTS Candidate Assistant (Python 3.11+).
+openai>=1.40
+python-dotenv>=1.0
+pytest>=8.0

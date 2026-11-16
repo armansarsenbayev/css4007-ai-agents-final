@@ -1,0 +1,19 @@
+{
+  "_note": "Simplified mock fee rules written for the CSS 4007 project. Not official IELTS policy or prices.",
+  "currency": "KZT",
+  "test_fee_kzt": 128000,
+  "transfer": [
+    {"rule_id": "TR-1", "min_days": 35, "max_days": null, "allowed": true,  "fee_kzt": 30000},
+    {"rule_id": "TR-2", "min_days": 14, "max_days": 34,   "allowed": true,  "fee_kzt": 60000},
+    {"rule_id": "TR-3", "min_days": 0,  "max_days": 13,   "allowed": false, "fee_kzt": null}
+  ],
+  "cancel": [
+    {"rule_id": "CA-1", "min_days": 35, "max_days": null, "refund_percent": 75},
+    {"rule_id": "CA-2", "min_days": 14, "max_days": 34,   "refund_percent": 25},
+    {"rule_id": "CA-3", "min_days": 0,  "max_days": 13,   "refund_percent": 0}
+  ],
+  "results": [
+    {"rule_id": "RE-CD", "delivery": "computer", "days_after_test": 3},
+    {"rule_id": "RE-PB", "delivery": "paper",    "days_after_test": 13}
+  ]
+}

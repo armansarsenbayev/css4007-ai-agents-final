@@ -21,6 +21,11 @@ jobs:
         with:
           node-version: '22'
       - run: npm test
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -q
       - run: npm run validate
         env:
           REQUIRED_WEEK: ${{ inputs.required_week }}
