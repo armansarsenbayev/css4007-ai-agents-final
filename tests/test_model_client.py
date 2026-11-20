@@ -110,3 +110,28 @@ def test_cli_rejects_empty_question_and_reports_errors(monkeypatch, capsys):
                         lambda *a, **k: (_ for _ in ()).throw(ModelError("No API key")))
     assert main(["hello"]) == 1
     assert "No API key" in capsys.readouterr().err
+
+
+def test_ask_requests_json_and_validates_the_answer():
+    import json as _json
+    from ielts_agent.__main__ import ask
+    good = {"language": "kk", "answer": "Кестені әзірге көре алмаймын.", "facts": [], "sources": [],
+            "tools_used": [], "needs_human": True}
+    client = FakeClient(fake_response(_json.dumps(good)))
+    reply, check = ask("Алматыда тест бар ма?", client=client, settings=SETTINGS)
+    assert client.requests[0]["response_format"] == {"type": "json_object"}
+    assert check.ok and check.answer == good
+    # an invented date without tool results is replaced by the fallback answer
+    bad = {**good, "facts": [{"label": "test date", "value": "2026-12-12"}]}
+    _, check = ask("Алматыда тест бар ма?", client=FakeClient(fake_response(_json.dumps(bad))), settings=SETTINGS)
+    assert not check.ok and check.answer["needs_human"] and check.answer["language"] == "kk"
+
+
+def test_cli_call_runs_core_functions_and_rejects_bad_input(capsys):
+    assert main(["--call", "estimate_results_date", '{"session_id": "ALA-1212-CD"}']) == 0
+    assert '"results_date": "2026-12-15"' in capsys.readouterr().out
+    assert main(["--call", "delete_everything", "{}"]) == 1
+    assert main(["--call", "search_policy", "{bad json"]) == 1
+    assert main(["--call", "search_policy", '{"query": "id", "today": "2026-01-01"}']) == 1
+    assert main(["--call", "search_policy", '{"text": "id"}']) == 1
+    assert "Wrong arguments" in capsys.readouterr().out

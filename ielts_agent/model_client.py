@@ -67,7 +67,7 @@ def _default_client(settings: config.Settings):
 
 
 def build_request(messages: list[dict], tools: list[dict] | None,
-                  settings: config.Settings) -> dict[str, Any]:
+                  settings: config.Settings, response_format: dict | None = None) -> dict[str, Any]:
     """Arguments for chat.completions.create.
 
     Temperature is not sent: gpt-5.6-luna only accepts the default value (1).
@@ -77,6 +77,8 @@ def build_request(messages: list[dict], tools: list[dict] | None,
         kwargs["reasoning_effort"] = settings.reasoning_effort
     if tools:
         kwargs["tools"] = tools
+    if response_format:
+        kwargs["response_format"] = response_format
     return kwargs
 
 
@@ -100,9 +102,11 @@ def parse_response(response: Any, model: str, seconds: float) -> ModelReply:
 
 
 def complete(messages: list[dict], tools: list[dict] | None = None, *,
+             response_format: dict | None = None,
              client: Any = None, settings: config.Settings | None = None) -> ModelReply:
     """Send the conversation (and optional tool definitions) to the model.
 
+    `response_format={"type": "json_object"}` asks the model for a JSON object.
     `client` and `settings` can be injected; tests use a fake client and never call the API.
     """
     settings = settings or config.get_settings()
@@ -111,7 +115,7 @@ def complete(messages: list[dict], tools: list[dict] | None = None, *,
             raise ModelError("No API key: set LLM_API_KEY in .env (see .env.example).")
         client = _default_client(settings)
 
-    kwargs = build_request(messages, tools, settings)
+    kwargs = build_request(messages, tools, settings, response_format)
     start = time.perf_counter()
     try:
         response = client.chat.completions.create(**kwargs)
